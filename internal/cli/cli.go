@@ -16,6 +16,7 @@ import (
 
 	"github.com/adagiumm/adag-lens/internal/report"
 	"github.com/adagiumm/adag-lens/internal/scan"
+	"github.com/adagiumm/adag-lens/internal/version"
 )
 
 // Exit codes. Warnings found in a repository are not errors: they are
@@ -41,6 +42,7 @@ Flags:
   --exclude-dir name     skip directories with this name at any depth; repeatable
                          (added to the defaults: .git, node_modules, vendor,
                          target, dist, build)
+  --version              print the version and exit
   --help                 show this help
 
 Exclusions match directory names only. .gitignore files are not read.
@@ -52,9 +54,10 @@ Exit codes:
 `
 
 type options struct {
-	format string
-	path   string
-	scan   scan.Options
+	format      string
+	path        string
+	scan        scan.Options
+	showVersion bool
 }
 
 // Run executes adag-lens and returns the process exit code. Output streams
@@ -68,6 +71,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(stderr, "adag-lens: %v\nRun 'adag-lens --help' for usage.\n", err)
 		return exitError
+	}
+
+	if opts.showVersion {
+		fmt.Fprintf(stdout, "adag-lens %s\n", version.String())
+		return exitOK
 	}
 
 	root, err := resolveDir(opts.path)
@@ -110,6 +118,8 @@ func parseArgs(args []string) (options, error) {
 
 	format := flags.String("format", "text", "output format: text or json")
 
+	showVersion := flags.Bool("version", false, "print the version and exit")
+
 	// flag.Func calls these functions each time the flag appears, which
 	// makes --exclude-dir repeatable. An error returned here is reported by
 	// the flag package as: invalid value "..." for flag -name: <error>.
@@ -149,7 +159,7 @@ func parseArgs(args []string) (options, error) {
 		return options{}, fmt.Errorf("expected at most one path, got %d", flags.NArg())
 	}
 
-	return options{format: *format, path: path, scan: scanOpts}, nil
+	return options{format: *format, path: path, scan: scanOpts, showVersion: *showVersion}, nil
 }
 
 // validateDirName rejects values that could never match. Exclusions compare
