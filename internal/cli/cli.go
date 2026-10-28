@@ -68,7 +68,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	start := time.Now()
-	result, err := scan.Run(root)
+	result, err := scan.Run(root, scan.DefaultOptions())
 	if err != nil {
 		fmt.Fprintf(stderr, "adag-lens: %v\n", err)
 		return exitError

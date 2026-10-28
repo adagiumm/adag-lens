@@ -49,12 +49,12 @@ func TestRunHealthyRepo(t *testing.T) {
 		".git/", "README.md", "LICENSE", ".gitignore",
 		".github/workflows/ci.yml", "go.mod")
 
-	r, err := Run(root)
+	r, err := Run(root, DefaultOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := Summary{Pass: 5, Warn: 0, Info: 1} // project type is always INFO
+	want := Summary{Pass: 6, Warn: 0, Info: 1} // project type is always INFO
 	if r.Summary != want {
 		t.Errorf("summary = %+v, want %+v", r.Summary, want)
 	}
@@ -70,7 +70,7 @@ func TestRunHealthyRepo(t *testing.T) {
 // The "git" check is deliberately not asserted: TMPDIR could, on some
 // machines, live inside a Git repository, which would make it flaky.
 func TestRunEmptyDirectory(t *testing.T) {
-	r, err := Run(t.TempDir())
+	r, err := Run(t.TempDir(), DefaultOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestRunEmptyDirectory(t *testing.T) {
 }
 
 func TestRunMissingDirectory(t *testing.T) {
-	_, err := Run(filepath.Join(t.TempDir(), "does-not-exist"))
+	_, err := Run(filepath.Join(t.TempDir(), "does-not-exist"), DefaultOptions())
 	if err == nil {
 		t.Fatal("expected an error for a missing directory")
 	}
@@ -119,7 +119,7 @@ func TestFileChecks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := Run(makeTree(t, tt.files...))
+			r, err := Run(makeTree(t, tt.files...), DefaultOptions())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -146,7 +146,7 @@ func TestProjectTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := Run(makeTree(t, tt.files...))
+			r, err := Run(makeTree(t, tt.files...), DefaultOptions())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -175,12 +175,12 @@ func TestFindGitRoot(t *testing.T) {
 
 func TestRunIsDeterministic(t *testing.T) {
 	root := makeTree(t, ".git/", "README.md", "go.mod", "package.json")
-	first, err := Run(root)
+	first, err := Run(root, DefaultOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 5; i++ {
-		again, err := Run(root)
+		again, err := Run(root, DefaultOptions())
 		if err != nil {
 			t.Fatal(err)
 		}
