@@ -10,8 +10,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
+	"time"
 
+	"github.com/adagiumm/adag-lens/internal/report"
 	"github.com/adagiumm/adag-lens/internal/scan"
 )
 
@@ -65,20 +67,23 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return exitError
 	}
 
+	start := time.Now()
 	result, err := scan.Run(root)
 	if err != nil {
 		fmt.Fprintf(stderr, "adag-lens: %v\n", err)
 		return exitError
 	}
+	elapsed := time.Since(start)
 
-	// TEMPORARY output: Step 3 replaces this with the report package, and
-	// Step 5 adds JSON. Until then --format json still prints this text.
-	fmt.Fprintf(stdout, "Repository: %s\n\n", result.Path)
-	for _, c := range result.Checks {
-		fmt.Fprintf(stdout, "[%s] %s\n", strings.ToUpper(string(c.Status)), c.Message)
+	// TEMPORARY: until Step 5 adds JSON, --format json prints the text report.
+	err = report.WriteText(stdout, result, report.TextOptions{
+		Color:    useColor(stdout),
+		Duration: elapsed,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "adag-lens: writing report: %v\n", err)
+		return exitError
 	}
-	fmt.Fprintf(stdout, "\nSummary: %d pass, %d warn, %d info\n",
-		result.Summary.Pass, result.Summary.Warn, result.Summary.Info)
 
 	if result.Summary.Warn > 0 {
 		return exitWarnings
@@ -135,4 +140,26 @@ func resolveDir(path string) (string, error) {
 		return "", fmt.Errorf("not a directory: %s", path)
 	}
 	return abs, nil
+}
+
+// useColor reports whether w should receive ANSI colors. Color is off when
+// NO_COLOR is set (https://no-color.org), when TERM=dumb, when w is not an
+// interactive terminal (piped or redirected output), and on Windows, where
+// older consoles print escape codes literally unless ANSI mode is enabled.
+func useColor(w io.Writer) bool {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return false
+	}
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
 }
