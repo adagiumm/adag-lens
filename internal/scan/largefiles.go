@@ -116,7 +116,6 @@ func checkLargeFiles(large []LargeFile, unreadable []string, limit int64) Check 
 		c.Details = append(c.Details, "unreadable: "+p)
 	}
 	return c
-	return c
 }
 
 // formatSize renders a byte count using binary units (KiB, MiB, ...).
