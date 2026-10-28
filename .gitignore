@@ -1,0 +1,9 @@
+# Build output
+/adag-lens
+/adag-lens.exe
+/dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
