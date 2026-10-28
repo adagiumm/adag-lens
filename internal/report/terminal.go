@@ -32,6 +32,7 @@ func WriteText(w io.Writer, r scan.Result, opts TextOptions) error {
 	// Only worth showing when the scanned path is inside a larger repository.
 	if r.GitRoot != "" && r.GitRoot != r.Path {
 		fmt.Fprintf(&b, "Git root:   %s\n", sanitize(r.GitRoot))
+		b.WriteString("Note:       scanning a subdirectory; run on the Git root for repository-level checks\n")
 	}
 	b.WriteString("\n")
 

@@ -106,9 +106,16 @@ func checkLargeFiles(large []LargeFile, unreadable []string, limit int64) Check 
 		}
 		c.Details = append(c.Details, fmt.Sprintf("%s (%s)", f.Path, formatSize(f.Size)))
 	}
-	if len(unreadable) > 0 {
-		c.Details = append(c.Details, fmt.Sprintf("%d unreadable path(s) skipped", len(unreadable)))
+	// Name the paths we could not read (capped, like the large files), so
+	// the user knows exactly what was not checked.
+	for i, p := range unreadable {
+		if i == maxDetails {
+			c.Details = append(c.Details, fmt.Sprintf("... and %d more unreadable paths", len(unreadable)-maxDetails))
+			break
+		}
+		c.Details = append(c.Details, "unreadable: "+p)
 	}
+	return c
 	return c
 }
 

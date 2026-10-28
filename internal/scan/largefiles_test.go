@@ -195,8 +195,8 @@ func TestUnreadableDirectory(t *testing.T) {
 		t.Errorf("Unreadable = %v, want [locked]", r.Unreadable)
 	}
 	c := checkByID(t, r, "large-files")
-	if !slices.Contains(c.Details, "1 unreadable path(s) skipped") {
-		t.Errorf("details missing the skipped note: %v", c.Details)
+	if !slices.Contains(c.Details, "unreadable: locked") {
+		t.Errorf("details should name the unreadable path: %v", c.Details)
 	}
 }
 

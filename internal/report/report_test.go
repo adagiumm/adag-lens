@@ -68,6 +68,7 @@ func TestWriteTextGitRootAndDetails(t *testing.T) {
 	got := render(t, r, TextOptions{})
 	for _, want := range []string{
 		"Git root:   /repo\n",
+		"scanning a subdirectory",
 		"       first line\n",
 		"       second line\n",
 	} {
