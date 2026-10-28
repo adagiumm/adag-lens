@@ -84,11 +84,14 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 	elapsed := time.Since(start)
 
-	// TEMPORARY: until Step 5 adds JSON, --format json prints the text report.
-	err = report.WriteText(stdout, result, report.TextOptions{
-		Color:    useColor(stdout),
-		Duration: elapsed,
-	})
+	if opts.format == "json" {
+		err = report.WriteJSON(stdout, result)
+	} else {
+		err = report.WriteText(stdout, result, report.TextOptions{
+			Color:    useColor(stdout),
+			Duration: elapsed,
+		})
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "adag-lens: writing report: %v\n", err)
 		return exitError
