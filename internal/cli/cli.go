@@ -10,13 +10,16 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/adagiumm/adag-lens/internal/scan"
 )
 
 // Exit codes. Warnings found in a repository are not errors: they are
 // results of a successful scan, so they get a different code than failures.
 const (
 	exitOK       = 0 // scan completed, no warnings
-	exitWarnings = 1 // scan completed, warnings found (used from Step 2 on)
+	exitWarnings = 1 // scan completed, warnings found
 	exitError    = 2 // invalid arguments or fatal error
 )
 
@@ -62,8 +65,24 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return exitError
 	}
 
-	// Placeholder: the real scan and report arrive in the next steps.
-	fmt.Fprintf(stdout, "Repository: %s\n", root)
+	result, err := scan.Run(root)
+	if err != nil {
+		fmt.Fprintf(stderr, "adag-lens: %v\n", err)
+		return exitError
+	}
+
+	// TEMPORARY output: Step 3 replaces this with the report package, and
+	// Step 5 adds JSON. Until then --format json still prints this text.
+	fmt.Fprintf(stdout, "Repository: %s\n\n", result.Path)
+	for _, c := range result.Checks {
+		fmt.Fprintf(stdout, "[%s] %s\n", strings.ToUpper(string(c.Status)), c.Message)
+	}
+	fmt.Fprintf(stdout, "\nSummary: %d pass, %d warn, %d info\n",
+		result.Summary.Pass, result.Summary.Warn, result.Summary.Info)
+
+	if result.Summary.Warn > 0 {
+		return exitWarnings
+	}
 	return exitOK
 }
 
