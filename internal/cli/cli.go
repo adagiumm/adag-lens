@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/adagiumm/adag-lens/internal/report"
@@ -34,8 +35,15 @@ If path is omitted, the current directory is used.
 Flags must come before the path.
 
 Flags:
-  --format string   output format: text or json (default "text")
-  --help            show this help
+  --format string        output format: text or json (default "text")
+  --max-file-size size   report files larger than this (default 10MiB)
+                         units: B, KiB, MiB, GiB (binary; KB and MB are not accepted)
+  --exclude-dir name     skip directories with this name at any depth; repeatable
+                         (added to the defaults: .git, node_modules, vendor,
+                         target, dist, build)
+  --help                 show this help
+
+Exclusions match directory names only. .gitignore files are not read.
 
 Exit codes:
   0  scan completed, no warnings
@@ -46,6 +54,7 @@ Exit codes:
 type options struct {
 	format string
 	path   string
+	scan   scan.Options
 }
 
 // Run executes adag-lens and returns the process exit code. Output streams
@@ -68,7 +77,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	start := time.Now()
-	result, err := scan.Run(root, scan.DefaultOptions())
+	result, err := scan.Run(root, opts.scan)
 	if err != nil {
 		fmt.Fprintf(stderr, "adag-lens: %v\n", err)
 		return exitError
@@ -95,7 +104,30 @@ func parseArgs(args []string) (options, error) {
 	flags := flag.NewFlagSet("adag-lens", flag.ContinueOnError)
 	// We print our own errors and usage, so silence the package's defaults.
 	flags.SetOutput(io.Discard)
+
 	format := flags.String("format", "text", "output format: text or json")
+
+	// flag.Func calls these functions each time the flag appears, which
+	// makes --exclude-dir repeatable. An error returned here is reported by
+	// the flag package as: invalid value "..." for flag -name: <error>.
+	// scanOpts starts from the defaults, so single source of truth lives in
+	// the scan package.
+	scanOpts := scan.DefaultOptions()
+	flags.Func("max-file-size", "report files larger than this size", func(s string) error {
+		n, err := scan.ParseSize(s)
+		if err != nil {
+			return err
+		}
+		scanOpts.MaxFileSize = n
+		return nil
+	})
+	flags.Func("exclude-dir", "directory name to skip (repeatable)", func(s string) error {
+		if err := validateDirName(s); err != nil {
+			return err
+		}
+		scanOpts.ExcludeDirs = append(scanOpts.ExcludeDirs, s)
+		return nil
+	})
 
 	if err := flags.Parse(args); err != nil {
 		return options{}, err
@@ -114,7 +146,19 @@ func parseArgs(args []string) (options, error) {
 		return options{}, fmt.Errorf("expected at most one path, got %d", flags.NArg())
 	}
 
-	return options{format: *format, path: path}, nil
+	return options{format: *format, path: path, scan: scanOpts}, nil
+}
+
+// validateDirName rejects values that could never match. Exclusions compare
+// single directory names, so "src/generated" would silently do nothing.
+func validateDirName(name string) error {
+	if name == "" {
+		return errors.New("directory name must not be empty")
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("%q looks like a path; give a directory name only (it is matched at any depth)", name)
+	}
+	return nil
 }
 
 // resolveDir turns the user's path into an absolute directory path, or
