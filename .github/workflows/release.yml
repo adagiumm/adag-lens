@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # needed to create the release and upload files
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Test
+        run: go test -count=1 ./...
+
+      - name: Build release archives
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          mkdir dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            os=${target%/*}
+            arch=${target#*/}
+            name="adag-lens_${RELEASE_TAG}_${os}_${arch}"
+            bin="adag-lens"
+            if [ "$os" = "windows" ]; then bin="adag-lens.exe"; fi
+
+            mkdir "dist/$name"
+            GOOS=$os GOARCH=$arch go build -trimpath \
+              -ldflags "-s -w -X github.com/adagiumm/adag-lens/internal/version.Version=${RELEASE_TAG}" \
+              -o "dist/$name/$bin" ./cmd/adag-lens
+            cp LICENSE README.md "dist/$name/"
+
+            if [ "$os" = "windows" ]; then
+              (cd dist && zip -qr "$name.zip" "$name")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$name"
+            fi
+            rm -rf "dist/$name"
+          done
+          (cd dist && sha256sum *.tar.gz *.zip > checksums.txt)
+          ls -l dist
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --title "$RELEASE_TAG" \
+            --generate-notes
