@@ -30,6 +30,8 @@ Statuses: `PASS` means the check succeeded, `WARN` means something worth fixing,
 
 You need a recent Go toolchain (the minimum version is the `go` line in [`go.mod`](go.mod)).
 
+Download a prebuilt binary for Linux, macOS or Windows from the [Releases page](https://github.com/adagiumm/adag-lens/releases). Each release includes a `checksums.txt` with SHA-256 hashes so you can verify the download. The binaries are **not signed**: macOS and Windows may show a warning the first time you run one.
+
 Install with Go:
 
 ```bash
